@@ -1,18 +1,29 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { encode } from '@msgpack/msgpack';
 
 const MAILTO = 'mailto=openalex-compare-app@example.com';
 const OPENALEX_BASE_URL = 'https://api.openalex.org';
 
-const PRESET_AUTHORS = [
+const PRESET_GROUPS = [
   {
-    shortId: 'A5086198262',
-    canonicalName: 'Yoshua Bengio',
+    id: 'ai-pioneers',
+    outputBaseNames: ['preset-authors', 'preset-ai-pioneers'],
+    description: 'Pre-downloaded binary dataset for Yoshua Bengio & Yann LeCun',
+    authors: [
+      { shortId: 'A5086198262', canonicalName: 'Yoshua Bengio' },
+      { shortId: 'A5001226970', canonicalName: 'Yann LeCun' },
+    ],
   },
   {
-    shortId: 'A5001226970',
-    canonicalName: 'Yann LeCun',
+    id: 'nobel-stemcell',
+    outputBaseNames: ['preset-nobel-stemcell'],
+    description: 'Pre-downloaded binary dataset for Shinya Yamanaka & Jennifer Doudna',
+    authors: [
+      { shortId: 'A5081862387', canonicalName: 'Shinya Yamanaka' },
+      { shortId: 'A5067184382', canonicalName: 'Jennifer A. Doudna' },
+    ],
   },
 ];
 
@@ -106,7 +117,7 @@ async function fetchAllWorksForAuthor(shortId, expectedCount) {
 
     if (results.length < perPage) break;
     page++;
-    await sleep(80);
+    await sleep(100);
   }
 
   console.log(`  Successfully fetched ${allWorks.length} works for ${shortId}`);
@@ -194,17 +205,18 @@ function extractTopTopics(works, fallbackAuthorTopics, limit = 10) {
   return [];
 }
 
-async function main() {
-  console.log('=== Pre-downloading OpenAlex Data for Preset Researchers ===');
+async function processPresetGroup(group, outDir) {
+  console.log(`\n=== Processing Preset Group: ${group.id} ===`);
 
   const presetPayload = {
     version: 1,
+    id: group.id,
     generatedAt: new Date().toISOString(),
-    description: 'Pre-downloaded binary dataset for Yoshua Bengio & Yann LeCun',
+    description: group.description,
     authors: [],
   };
 
-  for (const authorInfo of PRESET_AUTHORS) {
+  for (const authorInfo of group.authors) {
     const summary = await fetchAuthorSummary(authorInfo.shortId);
     const works = await fetchAllWorksForAuthor(authorInfo.shortId, summary.worksCount);
 
@@ -227,26 +239,44 @@ async function main() {
     await sleep(200);
   }
 
+  const binaryBuffer = encode(presetPayload);
+  const gzippedBuffer = zlib.gzipSync(binaryBuffer);
+
+  for (const baseName of group.outputBaseNames) {
+    const binPath = path.join(outDir, `${baseName}.bin`);
+    const gzPath = path.join(outDir, `${baseName}.bin.gz`);
+
+    fs.writeFileSync(binPath, Buffer.from(binaryBuffer));
+    fs.writeFileSync(gzPath, gzippedBuffer);
+
+    const binStats = fs.statSync(binPath);
+    const gzStats = fs.statSync(gzPath);
+    console.log(` -> Wrote ${binPath} (${(binStats.size / 1024).toFixed(2)} KB)`);
+    console.log(` -> Wrote ${gzPath} (${(gzStats.size / 1024).toFixed(2)} KB)`);
+  }
+}
+
+async function main() {
+  const targetGroupArg = process.argv[2];
   const outDir = path.resolve(process.cwd(), 'public/data');
   if (!fs.existsSync(outDir)) {
     fs.mkdirSync(outDir, { recursive: true });
   }
 
-  const binaryBuffer = encode(presetPayload);
-  const outPath = path.join(outDir, 'preset-authors.bin');
-  fs.writeFileSync(outPath, Buffer.from(binaryBuffer));
+  const groupsToProcess = targetGroupArg
+    ? PRESET_GROUPS.filter((g) => g.id === targetGroupArg)
+    : PRESET_GROUPS;
 
-  const gzPath = path.join(outDir, 'preset-authors.bin.gz');
-  const zlib = await import('node:zlib');
-  const gzipped = zlib.gzipSync(binaryBuffer);
-  fs.writeFileSync(gzPath, gzipped);
+  if (groupsToProcess.length === 0) {
+    console.error(`Group '${targetGroupArg}' not found. Available: ${PRESET_GROUPS.map((g) => g.id).join(', ')}`);
+    process.exit(1);
+  }
 
-  const stats = fs.statSync(outPath);
-  const gzStats = fs.statSync(gzPath);
-  console.log(`\n Binary file written successfully to ${outPath} (${(stats.size / 1024).toFixed(2)} KB)`);
-  console.log(` Gzipped file written successfully to ${gzPath} (${(gzStats.size / 1024).toFixed(2)} KB)`);
-  console.log(` Bengio works: ${presetPayload.authors[0].works.length}`);
-  console.log(` LeCun works: ${presetPayload.authors[1].works.length}`);
+  for (const group of groupsToProcess) {
+    await processPresetGroup(group, outDir);
+  }
+
+  console.log('\nAll preset downloads completed successfully!');
 }
 
 main().catch((err) => {

@@ -20,7 +20,7 @@ import {
 } from './services/openAlexApi';
 import { exportAuthorDataToJson } from './services/storage';
 import { SAMPLE_PRESETS, SamplePreset } from './data/sampleAuthors';
-import { loadPresetBinaryData } from './services/binaryPresetLoader';
+import { loadPresetBinaryData, warmUpAllPresetsInBackground } from './services/binaryPresetLoader';
 import { filterAuthorDataByYearRange } from './utils/periodFilter';
 import { Layers, Calendar } from 'lucide-react';
 
@@ -31,10 +31,11 @@ export default function App() {
   const [periodEndYear, setPeriodEndYear] = useState<number>(2025);
 
   // Initialize with pre-downloaded high-performance binary preset data (Yoshua Bengio vs Yann LeCun)
+  // Also pre-warms all presets (including iPS researchers) in background
   useEffect(() => {
     let isMounted = true;
     (async () => {
-      const binaryAuthors = await loadPresetBinaryData();
+      const binaryAuthors = await loadPresetBinaryData('ai-pioneers');
       if (isMounted) {
         if (binaryAuthors && binaryAuthors.length > 0) {
           setSelectedAuthors(binaryAuthors);
@@ -43,6 +44,8 @@ export default function App() {
           applyPreset(SAMPLE_PRESETS[0]);
         }
       }
+      // Pre-warm other presets (iPS / Nobel stem cell) into IndexedDB
+      warmUpAllPresetsInBackground();
     })();
 
     return () => {
@@ -117,12 +120,11 @@ export default function App() {
   };
 
   const applyPreset = async (preset: SamplePreset) => {
-    if (preset.id === 'ai-pioneers') {
-      const binaryAuthors = await loadPresetBinaryData();
-      if (binaryAuthors && binaryAuthors.length > 0) {
-        setSelectedAuthors(binaryAuthors);
-        return;
-      }
+    // Attempt ultra-fast load from pre-downloaded binary dataset (ai-pioneers, nobel-stemcell, etc.)
+    const binaryAuthors = await loadPresetBinaryData(preset.id);
+    if (binaryAuthors && binaryAuthors.length > 0) {
+      setSelectedAuthors(binaryAuthors);
+      return;
     }
 
     const fullAuthors: AuthorFullData[] = preset.authors.map((a, idx) => {

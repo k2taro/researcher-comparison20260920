@@ -49,4 +49,40 @@ describe('Binary Preset Dataset Integrity', () => {
     expect(lecun!.top10Fields.length).toBeGreaterThan(0);
     expect(lecun!.top10Topics.length).toBeGreaterThan(0);
   });
+
+  it('correctly decodes binary preset data containing Shinya Yamanaka and Jennifer Doudna (iPS preset)', () => {
+    const binPath = path.resolve(process.cwd(), 'public/data/preset-nobel-stemcell.bin');
+    const gzPath = path.resolve(process.cwd(), 'public/data/preset-nobel-stemcell.bin.gz');
+
+    expect(fs.existsSync(binPath)).toBe(true);
+    expect(fs.existsSync(gzPath)).toBe(true);
+
+    const buffer = fs.readFileSync(binPath);
+    const payload = decode(buffer) as unknown as PresetBinaryPayload;
+
+    expect(payload).toBeDefined();
+    expect(payload.version).toBe(1);
+    expect(payload.authors.length).toBe(2);
+
+    const yamanaka = payload.authors.find((a) => a.summary.displayName.includes('Yamanaka'));
+    const doudna = payload.authors.find((a) => a.summary.displayName.includes('Doudna'));
+
+    expect(yamanaka).toBeDefined();
+    expect(doudna).toBeDefined();
+
+    // Verify full works are pre-downloaded
+    expect(yamanaka!.works.length).toBeGreaterThan(300);
+    expect(doudna!.works.length).toBeGreaterThan(500);
+
+    // Verify pre-computed metrics
+    expect(yamanaka!.top10Works.length).toBe(10);
+    expect(yamanaka!.top10Journals.length).toBeGreaterThan(0);
+    expect(yamanaka!.top10Fields.length).toBeGreaterThan(0);
+    expect(yamanaka!.top10Topics.length).toBeGreaterThan(0);
+
+    expect(doudna!.top10Works.length).toBe(10);
+    expect(doudna!.top10Journals.length).toBeGreaterThan(0);
+    expect(doudna!.top10Fields.length).toBeGreaterThan(0);
+    expect(doudna!.top10Topics.length).toBeGreaterThan(0);
+  });
 });

@@ -14,23 +14,37 @@ export interface PresetBinaryAuthor {
 
 export interface PresetBinaryPayload {
   version: number;
+  id?: string;
   generatedAt: string;
   description: string;
   authors: PresetBinaryAuthor[];
 }
 
+function getBinaryFileBaseName(presetId?: string): string {
+  if (presetId === 'nobel-stemcell') {
+    return 'preset-nobel-stemcell';
+  }
+  return 'preset-authors';
+}
+
 /**
  * Loads pre-downloaded preset author data from high-performance binary format (.bin.gz or .bin)
  * using MessagePack deserialization and warms up the local IndexedDB cache.
+ * Supports both AI pioneers and Nobel stem cell (iPS) presets.
  */
-export async function loadPresetBinaryData(): Promise<AuthorFullData[] | null> {
+export async function loadPresetBinaryData(presetId = 'ai-pioneers'): Promise<AuthorFullData[] | null> {
   try {
+    const baseName = getBinaryFileBaseName(presetId);
     let arrayBuffer: ArrayBuffer | null = null;
+
+    // Resolve base path dynamically for GitHub Pages and sub-directory deployment compatibility
+    const baseUrl = typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL ? import.meta.env.BASE_URL : './';
+    const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
 
     // 1. First attempt: fast download via gzipped binary with browser DecompressionStream
     try {
       if (typeof window !== 'undefined' && 'DecompressionStream' in window) {
-        const gzRes = await fetch('/data/preset-authors.bin.gz');
+        const gzRes = await fetch(`${cleanBase}data/${baseName}.bin.gz`);
         if (gzRes.ok && gzRes.body) {
           const ds = new DecompressionStream('gzip');
           const decompressedStream = gzRes.body.pipeThrough(ds);
@@ -43,9 +57,9 @@ export async function loadPresetBinaryData(): Promise<AuthorFullData[] | null> {
 
     // 2. Fallback: fetch uncompressed MessagePack binary (.bin)
     if (!arrayBuffer) {
-      const binRes = await fetch('/data/preset-authors.bin');
+      const binRes = await fetch(`${cleanBase}data/${baseName}.bin`);
       if (!binRes.ok) {
-        throw new Error(`Failed to fetch preset binary: ${binRes.status} ${binRes.statusText}`);
+        throw new Error(`Failed to fetch preset binary ${baseName}: ${binRes.status} ${binRes.statusText}`);
       }
       arrayBuffer = await binRes.arrayBuffer();
     }
@@ -53,7 +67,7 @@ export async function loadPresetBinaryData(): Promise<AuthorFullData[] | null> {
     // 3. Ultra-fast binary MessagePack decoding
     const decoded = decode(new Uint8Array(arrayBuffer)) as unknown as PresetBinaryPayload;
     if (!decoded || !Array.isArray(decoded.authors) || decoded.authors.length === 0) {
-      throw new Error('Invalid binary payload structure');
+      throw new Error(`Invalid binary payload structure for ${baseName}`);
     }
 
     // 4. Map to AuthorFullData and warm up IndexedDB in background
@@ -85,7 +99,18 @@ export async function loadPresetBinaryData(): Promise<AuthorFullData[] | null> {
 
     return fullAuthors;
   } catch (err) {
-    console.warn('Failed to load binary preset data:', err);
+    console.warn(`Failed to load binary preset data (${presetId}):`, err);
     return null;
   }
+}
+
+/**
+ * Pre-warms IndexedDB in background with all available presets (AI pioneers and iPS researchers)
+ * so switching presets or querying them is instant without network requests.
+ */
+export function warmUpAllPresetsInBackground(): void {
+  setTimeout(() => {
+    loadPresetBinaryData('ai-pioneers').catch(() => {});
+    loadPresetBinaryData('nobel-stemcell').catch(() => {});
+  }, 1000);
 }

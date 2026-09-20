@@ -285,12 +285,12 @@ export const SAMPLE_PRESETS: SamplePreset[] = [
     authors: [
       {
         summary: {
-          id: 'https://openalex.org/A5012345678',
-          shortId: 'A5012345678',
+          id: 'https://openalex.org/A5081862387',
+          shortId: 'A5081862387',
           displayName: 'Shinya Yamanaka (山中 伸弥)',
-          worksCount: 340,
-          citedByCount: 165000,
-          hIndex: 128,
+          worksCount: 422,
+          citedByCount: 113191,
+          hIndex: 120,
           i10Index: 260,
           institutions: [{ displayName: 'Kyoto University / CiRA', countryCode: 'JP' }],
           countsByYear: [
@@ -343,14 +343,14 @@ export const SAMPLE_PRESETS: SamplePreset[] = [
       },
       {
         summary: {
-          id: 'https://openalex.org/A5098765432',
-          shortId: 'A5098765432',
-          displayName: 'Jennifer Doudna',
-          worksCount: 410,
-          citedByCount: 195000,
-          hIndex: 146,
+          id: 'https://openalex.org/A5067184382',
+          shortId: 'A5067184382',
+          displayName: 'Jennifer A. Doudna',
+          worksCount: 682,
+          citedByCount: 121742,
+          hIndex: 150,
           i10Index: 320,
-          institutions: [{ displayName: 'University of California, Berkeley', countryCode: 'US' }],
+          institutions: [{ displayName: 'University of California, Berkeley / QB3', countryCode: 'US' }],
           countsByYear: [
             { year: 2018, worksCount: 30, citedByCount: 21000 },
             { year: 2019, worksCount: 34, citedByCount: 25000 },
