@@ -1,0 +1,6 @@
+{
+  "name": "OpenAlex 研究者比較アプリ",
+  "description": "OpenAlexのデータを用いて研究者を検索・選択し、論文数・被引用数・h-index、年次推移、発表ジャーナル、研究分野、およびTransformers.jsによる論文タイトルのベクトル化散布図で比較分析するWebアプリケーション",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
